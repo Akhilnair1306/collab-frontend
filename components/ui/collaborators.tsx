@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   getCollaborators,
   addCollaborator,
-  removeCollaborator
+  removeCollaborator,
+  searchCollaborators
 } from "@/lib/collaborator.api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { debounce } from "@/lib/debounce";
 
 interface Collaborator {
   id: string;
@@ -18,6 +20,9 @@ interface Collaborator {
 }
 
 export default function Collaborators({ noteId }: { noteId: string }) {
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"VIEWER" | "EDITOR">("VIEWER");
@@ -26,6 +31,23 @@ export default function Collaborators({ noteId }: { noteId: string }) {
     const data = await getCollaborators(noteId);
     setCollaborators(data.collaborators);
   };
+
+  const debouncedSearch = useMemo(
+    () =>
+      debounce(async (value: string) => {
+        if (!value.trim()) {
+          setSearchResults([]);
+          return;
+        }
+
+        setSearching(true);
+        const users = await searchCollaborators(noteId, value);
+        setSearchResults(users);
+        setSearching(false);
+      }, 400),
+    [noteId]
+  );
+
 
   useEffect(() => {
     fetchCollaborators();
@@ -36,21 +58,28 @@ export default function Collaborators({ noteId }: { noteId: string }) {
     await addCollaborator(noteId, email, role);
     setEmail("");
     setRole("VIEWER");
+    setSearchResults([]);
     fetchCollaborators();
   };
 
-//   const handleRoleChange = async (
-//     collaboratorId: string,
-//     newRole: "VIEWER" | "EDITOR"
-//   ) => {
-//     await updateCollaboratorRole(noteId, collaboratorId, newRole);
-//     fetchCollaborators();
-//   };
+
+  //   const handleRoleChange = async (
+  //     collaboratorId: string,
+  //     newRole: "VIEWER" | "EDITOR"
+  //   ) => {
+  //     await updateCollaboratorRole(noteId, collaboratorId, newRole);
+  //     fetchCollaborators();
+  //   };
 
   const handleRemove = async (id: string) => {
     console.log(id)
     await removeCollaborator(noteId, id);
     fetchCollaborators();
+  };
+
+  const handleEmailChange = (value: string) => {
+    setEmail(value);
+    debouncedSearch(value);
   };
 
   return (
@@ -62,7 +91,7 @@ export default function Collaborators({ noteId }: { noteId: string }) {
         <Input
           placeholder="Email"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => handleEmailChange(e.target.value)}
         />
 
         <select
@@ -76,6 +105,30 @@ export default function Collaborators({ noteId }: { noteId: string }) {
 
         <Button onClick={handleAdd}>Add</Button>
       </div>
+
+      {searchResults.length > 0 && (
+        <div className="border rounded-md bg-background shadow-sm">
+          {searchResults.map((user) => (
+            <div
+              key={user.id}
+              className="px-3 py-2 text-sm cursor-pointer hover:bg-muted"
+              onClick={() => {
+                setEmail(user.email);
+                setSearchResults([]);
+              }}
+            >
+              {user.email}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {searching && (
+        <p className="text-xs text-muted-foreground">
+          Searching…
+        </p>
+      )}
+
 
       {/* List collaborators */}
       <div className="space-y-2">

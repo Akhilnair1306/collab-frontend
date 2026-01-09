@@ -16,3 +16,13 @@ export const removeCollaborator = async (
 ) => {
   await api.delete(`/notes/${noteId}/collaborator/${collaboratorId}`);
 };
+
+export const searchCollaborators = async (
+  noteId: string,
+  email: string
+) => {
+  const res = await api.get(
+    `/notes/${noteId}/collaborators/search?email=${encodeURIComponent(email)}`
+  );
+  return res.data.users;
+};
