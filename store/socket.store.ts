@@ -12,7 +12,8 @@ export const useSocketStore = create<SocketStore>((set) => ({
 
     connect: (token) => {
         console.log("SOCKET CONNECT CALLED");
-        const socket = io("https://collab-backend-738u.onrender.com", {
+        const socket = io("http://localhost:5000", {
+        // const socket = io("https://collab-backend-738u.onrender.com", {
             auth: { token: localStorage.getItem("token") },
         });
 
