@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { getMyNotes, deleteNote } from "@/lib/notes.api";
+import { useEffect, useMemo, useState } from "react";
+import { getMyNotes, deleteNote, searchNotes } from "@/lib/notes.api";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
@@ -17,11 +17,16 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
+import { debounce } from "@/lib/debounce";
+import { Input } from "@/components/ui/input";
 
 export default function DashboardPage() {
   const [notes, setNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [searching, setSearching] = useState(false);
+
 
   const router = useRouter();
   const logout = useAuthStore((s) => s.logout);
@@ -30,6 +35,28 @@ export default function DashboardPage() {
     const data = await getMyNotes();
     setNotes(data.notes);
     setLoading(false);
+  };
+
+  const debouncedSearch = useMemo(
+    () =>
+      debounce(async (value: string) => {
+        if (!value.trim()) {
+          fetchNotes();
+          return;
+        }
+
+        setSearching(true);
+        const results = await searchNotes(value);
+        setNotes(results);
+        setSearching(false);
+      }, 500),
+    []
+  );
+
+
+  const handleSearch = (value: string) => {
+    setSearch(value);
+    debouncedSearch(value);
   };
 
   useEffect(() => {
@@ -64,7 +91,19 @@ export default function DashboardPage() {
           </Button>
         </div>
       </div>
+      <div className="max-w-md">
+        <Input
+          placeholder="Search notes…"
+          value={search}
+          onChange={(e) => handleSearch(e.target.value)}
+        />
 
+        {searching && (
+          <p className="mt-1 text-xs text-zinc-500">
+            Searching…
+          </p>
+        )}
+      </div>
       {/* Notes Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {notes.length === 0 ? (
@@ -74,15 +113,15 @@ export default function DashboardPage() {
             <Card
               key={note.id}
               className="p-4 cursor-pointer hover:bg-muted relative"
-              
+
             >
               <h2 className="font-medium truncate">
                 {note.title || "Untitled Note"}
               </h2>
-            <Button variant="outline" onClick={() => router.push(`/note/${note.id}`)}>
-            Open
-          </Button>
-              
+              <Button variant="outline" onClick={() => router.push(`/note/${note.id}`)}>
+                Open
+              </Button>
+
               {/* Delete Button */}
               <AlertDialog>
                 <AlertDialogTrigger asChild>

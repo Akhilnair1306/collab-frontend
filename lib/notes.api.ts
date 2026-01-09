@@ -23,3 +23,8 @@ export const updateNote = async (id: string, title: string, content: string) => 
 export const deleteNote = async(noteId: string) => {
     await api.delete(`/notes/${noteId}`)
 }
+
+export const searchNotes = async (query: string) => {
+  const res = await api.get(`/notes/search?q=${encodeURIComponent(query)}`);
+  return res.data.notes;
+};
